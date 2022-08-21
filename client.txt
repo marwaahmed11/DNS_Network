@@ -1,0 +1,58 @@
+
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Scanner;
+public class client {
+    public static void main(String args[]) 
+	{
+		try {
+			// create obj of datagram for client
+			DatagramSocket clientSocket = new DatagramSocket();
+			//get ip addressos server from local host
+			InetAddress ServerIP = InetAddress.getByName("localhost");
+			//create array of byte to send client request and reseve server response
+			byte requestByte[] = null;
+			byte responseByte[] = new byte[4096];
+			//take input from console
+			Scanner scanner = new Scanner(System.in);
+			while(true)
+                        {
+			   System.out.println("send request to server or 'close'to close connection");
+			   //take input from console
+			   String input = scanner.nextLine();
+			  //break if client enter close
+			   if(input.equalsIgnoreCase("close"))
+                           {
+			    System.out.println("connection is close");
+			    clientSocket.close();
+			    break;
+                           }
+                           //convert string input into byte array
+			  requestByte = input.getBytes();
+		          DatagramPacket ClientPacket = new DatagramPacket(requestByte,requestByte.length,ServerIP,1111); // send client request to local
+			  //send client packet to server
+			  clientSocket.send(ClientPacket);
+			  //create  server packet to revive server's response
+			  DatagramPacket Serverpacket = new DatagramPacket(responseByte,responseByte.length);
+			  //recive server's response from srever packet
+			clientSocket.receive(Serverpacket);
+			//convert data byte to string 
+			String response = new String(Serverpacket.getData());
+			System.out.println("server: "+response.trim());
+			//clear buffer
+			requestByte=null;
+			requestByte=new byte[4096];
+                        scanner.close();
+			clientSocket.close();
+                        
+		
+                        }		
+		}
+		catch (Exception e)
+                {
+                    System.out.println("connection with server is terminated");
+                }
+	}
+    
+}

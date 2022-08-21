@@ -1,0 +1,128 @@
+
+package network_project;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Scanner;
+
+
+public class authoritativeServer {
+     public static void main(String args[]) 
+	{
+		try {
+			
+			DatagramSocket authoritativeServerSocket = new DatagramSocket(4444);
+			System.out.println("server is booted up and waiting for client to send request");
+			
+			//create array of bytes to receive client request and send server's response
+			byte[ ] requestOfTLDByte = new byte[4096];
+			byte[ ] responseOfauthoritativeByte = new byte[4096];
+			
+			while (true) {
+				System.out.println("server is ready to communicate with client");
+			
+				String dataOfFile= new String();
+				
+				//create client packet for receiving client's request
+				DatagramPacket clientPacket = new DatagramPacket(requestOfTLDByte,requestOfTLDByte.length);
+				
+				// receive client request from the client packet
+				authoritativeServerSocket.receive(clientPacket);
+				
+				//convert data byte to string
+				String requestOfClient = new String(clientPacket.getData());
+				//requestByte=req.getBytes();
+				
+				File myObj = new File("E:/authoritative_dns_table.txt");
+				Scanner myReader = new Scanner(myObj);
+				while(myReader.hasNextLine()) {
+					
+					String data = myReader.nextLine();
+					
+					String[]  array= data.split(" "); 
+					String firstElement=array[0];
+					
+					int comp = firstElement.compareTo(requestOfClient.trim());
+					if(comp==0)
+					{
+					   dataOfFile =data;
+					   break;
+					}
+					
+				}
+				myReader.close();
+				String []array= dataOfFile.split(" ");
+				String []newarray= new String [20];
+				for (int i=0;i<array.length;i++)
+				{
+					if (i==0) 
+					{
+					   newarray[i]="URL:"+array[i]+" ";
+					}
+					else if (i==1) 
+					{
+					  newarray[i]="IP:"+array[i]+" ";
+					}
+					else if (i==2) 
+					{
+					  newarray[i]="canonical name:"+array[i]+"    "+"Aliases:"+array[0]+" ";
+					}		
+				}
+				for (int i=(array.length)+3;i>=array.length;i--)
+				{
+				 if(i==(array.length))
+					{
+					newarray[i]="Server name :Autheritive DNS ";
+				    }
+				 else if(i==(array.length)+1)
+				   {
+					newarray[i]="Query type: A,NS ";		
+				    }
+				 else if (i==(array.length)+2)
+                                 {
+				    newarray[i]="Name: authoritative_dns_table.txt ";
+				 }
+				 else if(i==(array.length)+3)
+                                 {
+				   newarray[i]="IP = 10.16.142.66";
+				 }
+				}
+				
+				//take input from console
+				String input=new String();
+				for(int i=0;i<=array.length+3;i++)
+				{
+					input += newarray[i];
+				}
+				
+				//convert input from string to array byte
+				responseOfauthoritativeByte = input.getBytes();
+				
+				InetAddress clientIP = clientPacket.getAddress();
+				int clientport = clientPacket.getPort();
+				
+				//create server packet for sending server response to client
+				DatagramPacket serverPacket = new DatagramPacket(responseOfauthoritativeByte,responseOfauthoritativeByte.length,clientIP,clientport);
+				
+				//send server's response to client
+				authoritativeServerSocket.send(serverPacket);
+		       
+				
+				//clear buffer after every msg
+				requestOfTLDByte = new byte[4096];
+                                responseOfauthoritativeByte = null;
+                                authoritativeServerSocket.close();
+
+			}
+	}
+		catch(Exception e) 
+                {
+		  System.out.println("Problem with server socket");
+		}
+		
+	}
+    
+}

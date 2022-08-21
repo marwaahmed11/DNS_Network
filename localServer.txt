@@ -1,0 +1,184 @@
+
+package network_project;
+
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.io.IOException;
+import java.util.Scanner;
+import java.net.DatagramPacket;
+import java.io.File;
+import java.net.SocketException;
+
+public class localServer {
+     public static void main(String args[]) 
+	{
+		try 
+                {	
+                    DatagramSocket localServerSocket = new DatagramSocket(1111);//port of local
+                    DatagramSocket RootServerSocket = new DatagramSocket();
+
+                    System.out.println("server is booted up and waiting for client to send request.");
+                    // thread code
+                    Thread server = new serverConnection (localServerSocket,RootServerSocket);
+                    server.start();
+                    // serverSocket.close();
+		}
+		catch(SocketException e)
+                {
+                    System.out.println("Problem with server socket");
+		}
+	}
+	static class serverConnection extends Thread
+	{
+		DatagramSocket localserverudp;
+		DatagramSocket rootserverudp;
+		
+		//serverConnection is a constuctor
+		serverConnection(DatagramSocket server,DatagramSocket server1)
+		{
+                    localserverudp=server;
+                    rootserverudp=server1;
+		}
+		
+		public void run() 
+		{
+		try {
+			//create array of bytes to receive client request and send server's response
+			byte[ ] requestOfClientByte = new byte[4096];
+			byte[ ] responseOfLocalByte = new byte[4096];
+                               
+			byte[ ] requestOfLocalByte = new byte[4096];
+			byte[ ] responseOfRootByte = new byte[4096];
+				
+			Scanner scanner = new Scanner(System.in);
+			boolean b=false;
+			while (true) 
+                        {
+ 
+                            System.out.println("server is ready to communicate with client");
+                            String dataOfFile= new String();	
+			    //create client packet for receiving client's request
+			    DatagramPacket clientPacket = new DatagramPacket(requestOfClientByte,requestOfClientByte.length);
+			    localserverudp.receive(clientPacket); //local server receive request of client
+					
+			    //convert data byte to string
+			    String requestOfClient = new String(clientPacket.getData());	
+			    requestOfLocalByte=requestOfClient.getBytes(); //request of client is the same as local
+					
+			    File myObj = new File("E:/local_dns_table.txt");
+			    Scanner myReader = new Scanner(myObj);
+			    while(myReader.hasNextLine())
+                            {		
+				String data = myReader.nextLine();
+						
+				String[]  array= data.split(" "); 
+				String firstElement=array[0];
+					
+                                //trim to remove whitspaces
+				int comp = firstElement.compareTo(requestOfClient.trim()); //compare request of client is the same as first element in array 
+				if(comp==0) // is the same
+				   {
+				    dataOfFile =data;
+				    b=true;
+				    break;
+				   }		
+			    }
+			    myReader.close();
+			       if(b==true)
+			       {
+				String []array= dataOfFile.split(" ");
+				String []newarray= new String [20];
+				for (int i=0;i<array.length;i++)
+				{
+				   if (i==0) 
+                                   {
+				     newarray[i]="URL:"+array[i]+ " ";
+				   }
+				   else if (i==1) 
+				   {
+				     newarray[i]="IP:"+array[i]+" ";
+				   }
+				   else if (i==2) // if it has alias name
+				   {
+				     newarray[i]="canonical name:"+array[i]+"    "+"Aliases:"+array[0]+ " ";
+				   }		
+				}
+				for (int i=(array.length)+1;i>=array.length;i--)
+			        {
+				  if(i==(array.length)) //4
+				   {
+				     newarray[i]="Server name: Local DNS ";
+				    }
+				   else if(i==(array.length)+1) //3
+				   {
+					if(array.length==3)
+					{
+				         newarray[i]="Query type: A,CNAME ";
+					}
+					else
+					{
+					 newarray[i]="Query type: A ";
+					}
+			           }		
+				}
+                                //convert array to string
+				String input=new String();
+				for(int i=0;i<=array.length+1;i++)
+				{
+			         input += newarray[i];
+				}
+				//convert input from string to array byte
+				responseOfLocalByte = input.getBytes();
+								
+				InetAddress clientIP = clientPacket.getAddress();
+				int clientport = clientPacket.getPort();
+					
+				//create server packet for sending server response to client
+				DatagramPacket serverPacket = new DatagramPacket(responseOfLocalByte,responseOfLocalByte.length,clientIP,clientport);	
+				//send server's response to client
+				localserverudp.send(serverPacket);
+			       }
+                               else // if url is not found in file
+			        {
+			    	   InetAddress ServerIP = InetAddress.getByName("localhost");
+			    	   
+			    	   DatagramPacket localPacket = new DatagramPacket(requestOfLocalByte,requestOfLocalByte.length,ServerIP,2222);//PORT ROOT SERVER
+			    	   rootserverudp.send(localPacket); // send request from local to root
+			    	   
+			    	   DatagramPacket rootpacket = new DatagramPacket(responseOfRootByte,responseOfRootByte.length);
+			    	   rootserverudp.receive(rootpacket);
+                                   
+			    	   String response = new String(rootpacket.getData()); // convert response of root from byte to string
+			    	   
+			    	   InetAddress clientIP = clientPacket.getAddress();
+				   int clientport = clientPacket.getPort();
+                                   
+				   responseOfLocalByte=response.getBytes(); // send root response to local
+				   DatagramPacket serverPacket = new DatagramPacket(responseOfLocalByte,responseOfLocalByte.length,clientIP,clientport);
+				   rootserverudp.send(serverPacket); // send response of local to client
+						
+			          }
+				    //clear buffer after every msg
+				    requestOfClientByte = new byte[4096];
+				    responseOfLocalByte = null;
+				    requestOfLocalByte = null;
+				    responseOfRootByte = new byte[4096];
+				    localserverudp.close();
+				    scanner.close();
+				    rootserverudp.close();
+				    
+	                    }
+				
+			}
+			catch (IOException e)
+			{ 
+				System.out.println("connection with this client("+localserverudp+") is closed");
+			}
+		
+			}
+		
+	   }
+	
+    
+}
+

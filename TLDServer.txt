@@ -1,0 +1,181 @@
+
+package network_project;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Scanner;
+
+public class TLDServer {
+     public static void main(String args[]) 
+	{
+		try {
+			
+			DatagramSocket TLDServerSocket = new DatagramSocket(3333);
+			DatagramSocket authoritativeServerSocket = new DatagramSocket();
+			System.out.println("server is bootrd up and waiting for client to send request");
+			
+			// thread code
+			Thread server = new serverConnection (TLDServerSocket,authoritativeServerSocket);
+			   server.start();
+			  // serverSocket.close();
+		}
+		catch(Exception e) {
+			System.out.println("Problem with server socket");
+		}
+	}
+	static class serverConnection extends Thread
+	{
+		DatagramSocket TLDserverudp;
+		DatagramSocket authoritativeserverudp;
+		
+		//serverConnection is a constuctor
+		serverConnection(DatagramSocket server,DatagramSocket server1)
+		{
+			TLDserverudp=server;
+			authoritativeserverudp=server1;
+		}
+		
+		public void run() 
+		{
+			try {
+				//create array of bytes to receive client request and send server's response
+				byte[ ] requestOfRootByte = new byte[4096];
+				byte[ ] responseOfTLDByte = new byte[4096];
+                                
+				byte[ ] requestOfTLDByte = new byte[4096];
+				byte[ ] responseOfauthoritativeByte = new byte[4096];
+				
+				Scanner scanner = new Scanner(System.in);
+				boolean b=false;
+				while (true) {
+					System.out.println("server is ready to communicate with client");
+					String dataOfFile= new String();
+					
+					//create client packet for receiving client's request
+					DatagramPacket clientPacket = new DatagramPacket(requestOfRootByte,requestOfRootByte.length);
+					// receive client request from the client packet
+					TLDserverudp.receive(clientPacket);
+					
+					//convert data byte to string
+					String requestOfClient = new String(clientPacket.getData());
+					requestOfTLDByte=requestOfClient.getBytes();
+					
+					File myObj = new File("E:/TLD_dns_table.txt");
+					Scanner myReader = new Scanner(myObj);
+					while(myReader.hasNextLine()) {
+						
+						String data = myReader.nextLine();
+						
+						String[]  array= data.split(" "); 
+						String firstElement=array[0];
+						
+						int comp = firstElement.compareTo(requestOfClient.trim());
+						if(comp==0)
+						{
+						 dataOfFile =data;
+						 b=true;
+					       	 break;
+						}
+						
+					}
+					myReader.close();
+			       if(b==true)
+			       {
+					String []array= dataOfFile.split(" ");
+					String []newarray= new String [20];
+					for (int i=0;i<array.length;i++)
+					{
+						if (i==0) 
+						{
+						 newarray[i]="URL:"+array[i]+" ";
+						}
+						else if (i==1) 
+						{
+						 newarray[i]="IP:"+array[i]+" ";
+						}
+						else if (i==2) 
+						{
+						 newarray[i]="canonical name:"+array[i]+"    "+"Aliases:"+array[0]+" ";
+						}		
+					}
+					for (int i=(array.length)+1;i>=array.length;i--)
+					{
+						if(i==(array.length))
+						{
+						newarray[i]="Server name : TLD DNS ";
+					        }
+						else if(i==(array.length)+1)
+						{
+						if(array.length==3)
+						{
+						    newarray[i]="Query type: A,CNAME ";
+						}
+						else
+						{
+						newarray[i]="Query type: A ";
+						}
+					    }
+						
+					}
+					
+					
+					String input=new String();
+					for(int i=0;i<=array.length+1;i++)
+					{
+					input += newarray[i];
+					}
+					
+					//convert input from string to array byte
+					responseOfTLDByte = input.getBytes();
+					InetAddress clientIP = clientPacket.getAddress();
+					int clientport = clientPacket.getPort();
+					
+					//create server packet for sending server response to client
+					DatagramPacket serverPacket = new DatagramPacket(responseOfTLDByte,responseOfTLDByte.length,clientIP,clientport);
+					//send server's response to client
+					TLDserverudp.send(serverPacket);
+			       }
+			        else
+			        {
+			    	   InetAddress ServerIP = InetAddress.getByName("localhost");
+			    	   
+			    	   DatagramPacket localPacket = new DatagramPacket(requestOfTLDByte,requestOfTLDByte.length,ServerIP,4444);//PORT authoritative SERVER
+			    	   authoritativeserverudp.send(localPacket); 
+			    	   
+			    	   DatagramPacket autheritivepacket = new DatagramPacket(responseOfauthoritativeByte,responseOfauthoritativeByte.length);
+			    	   authoritativeserverudp.receive(autheritivepacket);
+                                   
+			    	   String response = new String(autheritivepacket.getData());
+			    	   InetAddress clientIP = clientPacket.getAddress();
+				   int clientport = clientPacket.getPort();
+				   responseOfTLDByte=response.getBytes();
+				   DatagramPacket serverPacket = new DatagramPacket(responseOfTLDByte,responseOfTLDByte.length,clientIP,clientport);
+				   authoritativeserverudp.send(serverPacket);
+						
+			          }
+				    //clear buffer after every msg
+				    requestOfRootByte = new byte[4096];
+				    responseOfTLDByte = null;
+				    requestOfTLDByte = null;
+				    responseOfauthoritativeByte = new byte[4096];
+				    TLDserverudp.close();
+				    scanner.close();
+				    authoritativeserverudp.close();
+				    
+	   }
+				
+			}
+			catch (IOException e)
+			{ 
+				System.out.println("connection with this client("+TLDserverudp+") is closed");
+			}
+		
+			}
+		
+	   }
+    
+    
+}
